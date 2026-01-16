@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PSM-analyysi (Front-End Demo)</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="title">
+      <h1>PSM-analyysi (Front-End Demo)</h1>
+      <p>Van Westendorpin Price Sensitivity Meter (PSM)</p>
+    </div>
+    <div class="header-actions">
+      <label class="btn secondary">
+        <input id="jsonLoader" type="file" accept="application/json" hidden />
+        Lataa JSON-data
+      </label>
+      <button id="saveJsonBtn" class="btn secondary">Tallenna projekti JSON</button>
+      <button id="exportExcelBtn" class="btn success">Vie data ja tulokset Exceliin (.xlsx)</button>
+      <button id="exportPptBtn" class="btn warning">Vie kaavio PowerPointiin (.pptx)</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="data">Data</button>
+    <button class="tab" data-tab="analysis">Analyysit</button>
+    <button class="tab" data-tab="viz">Visualisointi</button>
+    <button class="tab" data-tab="optimize">Etsi optimia</button>
+     <button class="tab" data-tab="guide">
+       Käyttöohje
+       <span class="tab-badge attention">Aloita käyttöohjeesta, jos olet uusi käyttäjä.</span>
+     </button>
+  </nav>
+
+  <main>
+    <section class="tab-panel active" id="tab-data">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Datapaneeli</h2>
+          <div class="panel-actions">
+            <label class="btn">
+              <input id="fileLoader" type="file" accept=".csv,.xlsx" hidden />
+              Tuo CSV / Excel
+            </label>
+            <button id="addRowBtn" class="btn">Lisää rivi</button>
+            <button id="addVarBtn" class="btn">Lisää muuttuja</button>
+          </div>
+        </div>
+
+        <div class="table-grid">
+          <div class="table-card">
+            <h3>Muuttujanäkymä</h3>
+            <table id="variableTable">
+              <thead>
+                <tr>
+                  <th>Muuttujan nimi</th>
+                  <th>Tyyppi</th>
+                  <th>Rooli</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="table-card">
+            <h3>Datanäkymä</h3>
+            <div class="table-scroll">
+              <table id="dataTable">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-analysis">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Analyysit</h2>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="card" id="metricsForecastCard">
+            <h3>Avainmittarit</h3>
+            <div class="metric">
+              <span>Optimaalinen hinta (OPP)</span>
+              <strong id="oppValue">-</strong>
+            </div>
+            <div class="metric">
+              <span>Halvin hyväksyttävä hinta (PMC)</span>
+              <strong id="pmcValue">-</strong>
+            </div>
+            <div class="metric">
+              <span>Kallein hyväksyttävä hinta (PME)</span>
+              <strong id="pmeValue">-</strong>
+            </div>
+            <div class="metric">
+              <span>Indifferenssihinta (IPP)</span>
+              <strong id="ippValue">-</strong>
+            </div>
+            <div class="metric">
+              <span>Hyväksyttävä hintahaarukka</span>
+              <strong id="rangeValue">-</strong>
+            </div>
+
+            <h3>Yksinkertainen ennuste</h3>
+            <div class="form-row">
+              <label for="forecastPrice">Tavoitehinta (€)</label>
+              <input id="forecastPrice" type="number" min="0" step="0.01" />
+              <small>Ennuste valitulle ryhmälle.</small>
+            </div>
+            <div class="metric">
+              <span>Liian halpa</span>
+              <strong id="forecastTooCheap">-</strong>
+            </div>
+            <div class="metric">
+              <span>Edullinen</span>
+              <strong id="forecastBargain">-</strong>
+            </div>
+            <div class="metric">
+              <span>Kallis</span>
+              <strong id="forecastExpensive">-</strong>
+            </div>
+            <div class="metric">
+              <span>Liian kallis</span>
+              <strong id="forecastTooExpensive">-</strong>
+            </div>
+          </div>
+
+          <div id="filterSlotAnalysis">
+            <div class="card" id="filterCard">
+              <h3>Suodatus</h3>
+              <div class="form-row">
+                <label for="groupSelect">Ryhmittele muuttujalla</label>
+                <select id="groupSelect"></select>
+              </div>
+              <div class="form-row">
+                <label id="filterLabel" for="filterSelect">Suodata ryhmä</label>
+                <div id="filterControl"></div>
+              </div>
+              <h4>Luo suodatusmuuttuja</h4>
+              <div class="form-row">
+                <label for="clusterSelect">K-means-klusterointi</label>
+                <div id="clusterSelect" class="checkbox-list"></div>
+                <small>Käytä vain numeerisia taustamuuttujia.</small>
+                <div id="clusterSelectMessage" class="inline-message" aria-live="polite"></div>
+              </div>
+              <div class="form-row">
+                <label for="clusterK">Klusterien määrä (k)</label>
+                <input id="clusterK" type="number" min="2" max="10" value="3" />
+              </div>
+              <div class="form-row">
+                <label for="clusterName">Klusterimuuttujan nimi</label>
+                <input id="clusterName" type="text" value="Klusteri" />
+              </div>
+              <div class="form-row hidden" id="clusterMeanLabelsRow">
+                <label>
+                  <input id="clusterMeanLabels" type="checkbox" />
+                  Nimeä luokat luokkakeskiarvoilla
+                </label>
+              </div>
+              <div class="form-row">
+                <div class="inline">
+                  <button id="runClusterBtn" class="btn">Aja</button>
+                  <button id="runClusterTabulateBtn" class="btn secondary hidden">Aja ja taulukoi</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" id="pivotCard">
+            <h3>Taulukointi (keskiarvot)</h3>
+            <div class="form-row">
+              <label for="pivotRow">Rivi (luokittelu)</label>
+              <select id="pivotRow"></select>
+            </div>
+            <div class="form-row">
+              <label for="pivotCol">Sarake (luokittelu)</label>
+              <select id="pivotCol"></select>
+            </div>
+            <div class="form-row">
+              <label for="pivotValue">Arvo (keskiarvo)</label>
+              <select id="pivotValue"></select>
+            </div>
+            <div class="table-scroll">
+              <table id="pivotTable">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-viz">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Visualisointi</h2>
+        </div>
+
+        <div class="viz-top">
+          <div id="filterSlotViz"></div>
+
+          <div class="card" id="vizChartCard">
+            <canvas id="psmChart" height="380"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-optimize">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Etsi optimia</h2>
+        </div>
+
+        <div class="analysis-grid">
+          <div class="card">
+            <h3>Hakuasetukset</h3>
+            <div class="form-row">
+              <label>Valitse taustamuuttujat</label>
+              <div id="optimizerVars" class="checkbox-list"></div>
+            </div>
+            <div class="form-row">
+              <label for="optimizerTopN">Näytettävien segmenttien määrä</label>
+              <input id="optimizerTopN" type="number" min="1" max="50" value="10" />
+            </div>
+            <div class="form-row">
+              <div class="inline">
+                <button id="optimizerStartBtn" class="btn primary">Aloita haku</button>
+                <button id="optimizerStopBtn" class="btn secondary" disabled>Keskeytä haku</button>
+              </div>
+            </div>
+            <div id="optimizerStatus" class="inline-message" aria-live="polite"></div>
+          </div>
+
+          <div class="card">
+            <h3>Parhaat segmentit</h3>
+            <div id="optimizerResults" class="optimizer-results"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-guide">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Käyttöohje</h2>
+        </div>
+
+        <div class="card guide">
+          <h3>PSM-analyysityökalun käyttöohje</h3>
+          <div class="guide-tldr">
+            <h4>PSM pähkinänkuoressa</h4>
+            <ul>
+              <li>Tuo data (CSV / Excel / JSON).</li>
+              <li>Määritä 4 PSM-muuttujaa (liian halpa, edullinen, kallis, liian kallis).</li>
+              <li>Siirry Analyysit-välilehdelle.</li>
+              <li>Tarkastele OPP-, PMC- ja PME-hintapisteitä.</li>
+              <li>Halutessasi suodata tai klusteroi ryhmiä.</li>
+            </ul>
+          </div>
+          <p>
+            Tervetuloa käyttämään Price Sensitivity Meter (PSM) -työkalua. Tämä sovellus auttaa sinua
+            määrittämään tuotteellesi tai palvelullesi optimaalisen hintapisteen ja hyväksyttävän
+            hintahaarukan kyselydatan perusteella.
+          </p>
+          <p>
+            Tämän työkalun avulla saat kyselyvastauksista:
+          </p>
+          <ul>
+            <li>OPP (optimaalinen hintapiste)</li>
+            <li>PMC (halvin hyväksyttävä hintapiste)</li>
+            <li>PME (kallein hyväksyttävä hintapiste)</li>
+          </ul>
+
+          <div class="guide-callout">
+            <strong>Vinkki:</strong> PSM-aineisto kerätään kyselytutkimuksella. Varmista, että neljä PSM-kysymystä
+            ovat mukana kyselyssä ja vastaukset on tallennettu dataan, jotta laskenta toimii.
+          </div>
+
+          <div class="guide-section">
+            <h4>1. Mikä on PSM (Van Westendorp)?</h4>
+          <p>
+            Lyhyesti sanottuna: Ihmisten on vaikea vastata suoraan kysymykseen “Paljonko maksaisit tästä?”.
+            PSM-menetelmä kiertää tämän psykologisen esteen kysymällä neljä epäsuoraa kysymystä.
+          </p>
+            <p>
+              Price Sensitivity Meter (PSM) on markkinatutkimusmenetelmä, joka mittaa kuluttajien
+              hintamieltymyksiä. Menetelmän esitteli vuonna 1976 hollantilainen ekonomisti Peter van
+              Westendorp. PSM:ää on sittemmin käytetty laajasti markkinatutkimuksessa ja se on ollut
+              osa monien alan järjestöjen koulutuksia ja ammattikäytäntöjä.
+            </p>
+            <p>
+              PSM:n taustaoletus on, että vastaajat pystyvät kuvittelemaan hinnan ja arvon välisen
+              yhteyden: hinta on sisäinen mittari sille, mitä tuote tai palvelu heille “arvoltaan”
+              merkitsee. Vastaajat määrittävät hintapisteitä, joissa heidän käsityksensä tuotteen
+              arvosta muuttuu.
+            </p>
+          <p>Kysymykset kartoittavat asiakkaan laatu-hinta-mielikuvaa:</p>
+          <ul>
+            <li><strong>Liian halpa:</strong> Hinta on niin alhainen, että epäilet tuotteen laatua.</li>
+            <li><strong>Edullinen:</strong> Hinta on edullinen (“löytö”), ja ostaisit tuotteen mielelläsi.</li>
+            <li><strong>Kallis:</strong> Hinta on korkea, mutta harkitsisit ostoa, jos tuote on todella hyvä.</li>
+            <li><strong>Liian kallis:</strong> Hinta on niin korkea, ettet ostaisi tuotetta missään tapauksessa.</li>
+          </ul>
+            <p>
+              Perinteisessä PSM-lähestymistavassa neljä vastausjakaumaa piirretään kumulatiivisina
+              käyrinä (kullekin kysymykselle oma käyrä). Kaksi käyrää käännetään, jotta leikkauspisteet
+              voidaan tulkita: käytännössä “liian halpa” ja “edullinen” käännetään.
+            </p>
+          <p>
+            Tämä työkalu piirtää vastauksista käyrät, joiden leikkauspisteet kertovat, missä kohtaa
+            asiakkaiden hintaherkkyys muuttuu.
+          </p>
+            <p>
+              Leikkauspisteiden tulkinta:
+            </p>
+            <ul>
+              <li><strong>PMC:</strong> “Liian halpa” ja “kallis” leikkaavat → hintahaarukan alaraja.</li>
+              <li><strong>PME:</strong> “Liian kallis” ja “edullinen” leikkaavat → hintahaarukan yläraja.</li>
+              <li><strong>IPP:</strong> “Kallis” ja “edullinen” leikkaavat → indifferenssihintapiste.</li>
+              <li><strong>OPP:</strong> “Liian halpa” ja “liian kallis” leikkaavat → optimaalinen hintapiste.</li>
+            </ul>
+          </div>
+
+          <div class="guide-section">
+            <h4>2. Datan tuominen ja valmistelu</h4>
+            <p><b>Voit hypätä tämän vaiheen yli osioon <i>3. Analyysin tulkinta</i>, jos käytät valmiiksi ladattua demodataa.</b></p>
+            <p>Ennen kuin analyysi voi alkaa, data on tuotava sisään ja muuttujat on määriteltävä.</p>
+
+          <div class="guide-subsection">
+            <h5>Vaihe 1: Datan lataus</h5>
+          <ul>
+            <li>Mene Data-välilehdelle.</li>
+            <li>
+              <strong>Tuo CSV / Excel:</strong> Voit ladata valmiin tiedoston. Tiedostossa tulisi olla omat
+              sarakkeet neljälle hintakysymykselle sekä mahdollisille taustamuuttujille (esim. ikä,
+              sukupuoli).
+            </li>
+            <li>
+              <strong>Lataa JSON:</strong> Jos olet tallentanut aiemman projektin tästä työkalusta, voit
+              palauttaa sen tästä.
+            </li>
+            <li>
+              <strong>Manuaalinen syöttö:</strong> Voit myös naputella lukuja suoraan taulukkoon
+              “Datanäkymä”-osiossa (hyvä pienten testien tekemiseen).
+            </li>
+          </ul>
+          </div>
+
+          <div class="guide-subsection">
+            <h5>Vaihe 2: Muuttujien määrittely (Tärkein vaihe!)</h5>
+            <div class="guide-warning">
+              ⚠️ <strong>Yleisin virhe:</strong> Jos PSM-roolit on määritetty väärin (esim. “kallis” ja
+              “liian kallis” sekaisin), kaikki tulokset ovat virheellisiä – vaikka kaaviot näyttävät oikeilta.
+            </div>
+          <p>
+            Sovelluksen täytyy tietää, mikä sarake tarkoittaa mitäkin. Katso vasemman laidan
+            Muuttujanäkymä-taulukkoa.
+          </p>
+          <ul>
+            <li>Etsi listasta ne neljä muuttujaa, jotka vastaavat PSM-kysymyksiä.</li>
+            <li>Vaihda niiden Rooli-sarakkeesta oikea asetus:</li>
+          </ul>
+          <ul>
+            <li>Liian halpa</li>
+            <li>Edullinen</li>
+            <li>Kallis</li>
+            <li>Liian kallis</li>
+          </ul>
+          <p>Muut sarakkeet (kuten Ikä, Sukupuoli, Asuinpaikka) kannattaa merkitä roolilla Taustamuuttuja.</p>
+          <ul>
+            <li>Jos muuttuja on numero (esim. ikä), valitse tyypiksi jatkuva.</li>
+            <li>Jos muuttuja on tekstiä (esim. mies/nainen), valitse tyypiksi kategorinen.</li>
+          </ul>
+          </div>
+          </div>
+
+          <div class="guide-section">
+            <h4>3. Analyysin tulkinta</h4>
+            <p>Siirry Analyysit-välilehdelle, jossa on esitettynä laskennan tulokset.</p>
+            <p>Voit myös vaihtoehtoisesti siirtyä Visualisointi-välilehdelle.</p>
+            <p>Visualisointi-välilehteä käsitellään osiossa 6.</p>
+
+          <div class="guide-subsection">
+            <h5>Avainmittarit (Mitä luvut tarkoittavat?)</h5>
+            <p>
+              Työkalu laskee automaattisesti neljä kriittistä hintapistettä. Hintapiste = yksittäinen arvo
+              (OPP, IPP) ja hintahaarukka = PMC–PME.
+            </p>
+          <ul>
+            <li>
+              <strong>Optimaalinen hintapiste (OPP):</strong> “Sweet spot”. Tässä hintapisteessä vastustus on
+              pienimmillään. Teoriassa tässä hintapisteessä suurin osa ihmisistä pitää tuotetta hyväksyttävän
+              hintaisena.
+            </li>
+            <li><strong>Hyväksyttävä hintahaarukka:</strong> Alkaa PMC:stä ja päättyy PME:hen.</li>
+            <li>
+              <strong>Halvin hyväksyttävä hintapiste (PMC):</strong> Jos menet tämän alle, menetät myyntiä, koska
+              asiakkaat pitävät tuotetta “roskana”.
+            </li>
+            <li>
+              <strong>Kallein hyväksyttävä hintapiste (PME):</strong> Jos menet tämän yli, hinta ylittää asiakkaan
+              kipukynnyksen rajusti.
+            </li>
+            <li>
+              <strong>Indifferenssihintapiste (IPP):</strong> Hintapiste, jota useimmat pitävät “normaalina”
+              markkinahintana (tasapaino edullisen ja kalliin välillä).
+            </li>
+          </ul>
+          </div>
+
+          <div class="guide-subsection">
+            <h5>Ennustetyökalu</h5>
+          <ul>
+            <li>Oikeassa reunassa on “Yksinkertainen ennuste”.</li>
+            <li>Syötä kenttään hinta (käyttäjän syöttämä arvo), esim. 29.90.</li>
+            <li>Työkalu kertoo, kuinka suuri prosenttiosuus vastaajista pitää tätä hintana kalliina, halpana tai täysin mahdottomana.</li>
+          </ul>
+          <h6>Miten ennustetta kannattaa tulkita?</h6>
+          <ul>
+            <li>Jos “liian kallis” -osuus kasvaa jyrkästi → hinta ylittää PME:n.</li>
+            <li>Jos “liian halpa” -osuus on korkea → laatu- tai brändimielikuva kärsii.</li>
+            <li>Hyvä hintapiste on usein alueella, jossa molemmat ääripäät ovat matalia.</li>
+          </ul>
+          </div>
+          </div>
+
+          <div class="guide-section">
+            <h4>4. Edistyneet toiminnot: Suodatus ja Klusterointi</h4>
+            <p>Usein keskiarvo valehtelee. Siksi on tärkeää katsoa dataa osissa.</p>
+
+          <div class="guide-subsection">
+            <h5>Suodatus</h5>
+          <ul>
+            <li>Voit rajata analyysin koskemaan vain tiettyä ryhmää.</li>
+            <li>Valitse Ryhmittele muuttujalla (esim. Sukupuoli).</li>
+            <li>Valitse Suodata ryhmä -kohdasta haluamasi (esim. vain Naiset).</li>
+            <li>Kaikki mittarit (OPP, PMC jne.) päivittyvät laskemaan tulokset vain tälle ryhmälle.</li>
+          </ul>
+          </div>
+
+          <div class="guide-subsection">
+            <h5>K-means-klusterointi (Asiakassegmentointi)</h5>
+          <p>
+            Mitä jos et tiedä, mitkä ryhmät ovat kiinnostavia? “Klusterointi” on matemaattinen tapa
+            etsiä datasta samankaltaisia vastaajaryhmiä automaattisesti.
+          </p>
+          <p><strong>Huom:</strong> Klusterointi on eksploratiivinen menetelmä. Ryhmät eivät ole “todellisia” asiakassegmenttejä, vaan analyysin apuvälineitä.</p>
+          <p><strong>Miten se toimii rautalangasta vääntäen:</strong></p>
+          <p>
+            Kuvittele, että heität kaikki vastaajat huoneeseen. K-means-algoritmi komentaa:
+            “Jakaantukaa kolmeen ryhmään niin, että seisotte lähellä niitä, jotka ovat teidän
+            kaltaisianne (esim. samanikäisiä).”
+          </p>
+          <p><strong>Käyttöohje:</strong></p>
+          <ul>
+            <li>Kohdassa Luo suodatusmuuttuja, valitse numeeriset taustamuuttujat (esim. Ikä).</li>
+            <li>Valitse montako ryhmää haluat (k-arvo, yleensä 3 tai 4 on hyvä).</li>
+            <li>Paina Aja.</li>
+            <li>Työkalu luo uuden “Klusteri”-muuttujan. Nyt voit käyttää tätä uutta muuttujaa suodatukseen tai vertailuun!</li>
+          </ul>
+          </div>
+          </div>
+
+            <div class="guide-section">
+            <h4>5. Optimin etsintä (Automaatti)</h4>
+
+            <p>
+                Etsi optimia -välilehti on työkalu asiakassegmenttien vertailuun
+                hinnoittelun näkökulmasta. Toiminto käy läpi kaikki valittujen
+                taustamuuttujien muodostamat segmentit (esim. “Naiset, ikä 20–30 v”)
+                ja järjestää ne niiden PSM-pohjaisen tuottopotentiaalin mukaan.
+            </p>
+
+            <p>
+                Tarkoituksena ei ole ennustaa todellista myyntiä, vaan tunnistaa
+                segmenttejä, joissa yhdistyvät suhteellisen korkea hyväksyttävä
+                hintataso ja suuri vastaajamäärä, ja jotka ovat siksi kiinnostavia
+                jatkoanalyysille.
+            </p>
+
+            <ul>
+                <li>Valitse taustamuuttujat, joita haluat käyttää segmentointiin (esim. ikä, sukupuoli).</li>
+                <li>Paina <em>Aloita haku</em>.</li>
+                <li>Työkalu listaa segmentit tuottopotentiaalin perusteella.</li>
+                <li>
+                <strong>
+                    Tuottopotentiaali ≈ OPP (optimaalinen hintapiste) × segmentin koko
+                </strong>
+                </li>
+            </ul>
+
+            <p>
+                Tuottopotentiaali perustuu oletukseen, että hinta asetetaan segmentin
+                optimaaliseen hintapisteeseen (OPP) ja että kysyntä on tällöin
+                hyväksyttävyyden näkökulmasta parhaassa mahdollisessa tasapainossa.
+                Segmentin koko toimii volyymin proxyna.
+            </p>
+
+            <p>
+                Näillä vahvoilla oletuksilla mittari vastaa segmentin
+                keskimääräistä tuottoa. Käytännössä ostokäyttäytymistä ei kuitenkaan
+                tunneta, eikä kyselyotos välttämättä edusta perusjoukkoa.
+                Painotusta ei ole käytössä, joten otantaan liittyvä vinouma voi
+                vaikuttaa tuloksiin. Tästä syystä mittaria käytetään vertailuun,
+                ei absoluuttisen tuottotason arviointiin.
+            </p>
+
+            <div class="guide-subsection">
+                <h5>Mitä tämä optimointi ei tee</h5>
+                <ul>
+                <li>Ei ennusta todellista myyntiä tai ostomääriä.</li>
+                <li>Ei huomioi kustannuksia, kilpailijoita tai hintajoustoja.</li>
+                <li>Ei mallinna konversioita eikä ostotodennäköisyyksiä.</li>
+                <li>Ei ole hinnoittelualgoritmi eikä liiketoimintalupaus.</li>
+                </ul>
+            </div>
+
+            <p>
+                Optimointi auttaa tunnistamaan sekä korkean hinnan
+                niche-segmenttejä että laajoja massasegmenttejä, joilla on
+                matalampi hyväksyttävä hintataso mutta suuri volyymi.
+                Tuloksia tulisi aina tarkastella lähtökohtana jatkotyölle,
+                ei valmiina päätöksinä.
+            </p>
+            </div>
+
+
+          <div class="guide-section">
+            <h4>6. Visualisointi ja Vienti</h4>
+          <ul>
+            <li>Visualisointi-välilehdellä näet klassisen PSM-kaavion.</li>
+            <li>Neljä käyrää risteävät toistensa kanssa.</li>
+            <li>Voit viedä kaavion suoraan PowerPointiin yläpalkin napista.</li>
+            <li>Voit viedä kaikki laskelmat ja datan Exceliin jatkojalostusta varten.</li>
+          </ul>
+          </div>
+
+          <div class="guide-section">
+            <h4>Sanasto (Pikaopas)</h4>
+          <div class="table-scroll">
+            <table id="glossaryTable">
+              <thead>
+                <tr>
+                  <th>Termi</th>
+                  <th>Suomeksi</th>
+                  <th>Selitys</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>OPP</td>
+                  <td>Optimal Price Point</td>
+                  <td>Hintapiste, jossa ostopuolen vastustus on minimissä. Usein tavoiteltavin.</td>
+                </tr>
+                <tr>
+                  <td>PMC</td>
+                  <td>Point of Marginal Cheapness</td>
+                  <td>Hintahaarukan alaraja. Tämän alle mentäessä laatuvaikutelma kärsii.</td>
+                </tr>
+                <tr>
+                  <td>PME</td>
+                  <td>Point of Marginal Expensiveness</td>
+                  <td>Hintahaarukan yläraja. Tämän yli mentäessä hinta on ehdoton este.</td>
+                </tr>
+                <tr>
+                  <td>IPP</td>
+                  <td>Indifference Price Point</td>
+                  <td>“Normaalihinta”. Hintapiste, joka koetaan markkinoiden standardiksi.</td>
+                </tr>
+                <tr>
+                  <td>Range</td>
+                  <td>Hintahaarukka</td>
+                  <td>Väli PMC:n ja PME:n välillä.</td>
+                </tr>
+                <tr>
+                  <td>K-Means</td>
+                  <td>K-keskiarvo -klusterointi</td>
+                  <td>Matemaattinen tapa jakaa asiakkaat ryhmiin heidän ominaisuuksiensa perusteella.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <span id="statusText">Valmis.</span>
+      <div class="footer-disclaimer">
+        Vastuuvapauslauseke: Käytä työkalua omalla vastuulla. Tekijä ei vastaa mahdollisista virheistä, vahingoista tai päätöksistä, jotka perustuvat työkalun antamiin tuloksiin.
+      </div>
+      <div class="footer-feedback">
+        Palaute ja kommentit: <a href="mailto:akuville.lehtimaki@gmail.com">akuville.lehtimaki@gmail.com</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
